@@ -1,0 +1,1 @@
+on debian had to install libsdl1.2debian:i386 to get the 32 bit version compiling on 64 bit ubuntu.

@@ -1,0 +1,1 @@
+release makefiles that disable debug symbols, enable optimizations, and dont generate any unnecessary files

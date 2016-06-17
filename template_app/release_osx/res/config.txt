@@ -1,0 +1,2 @@
+<serverip><66.17.102.70>
+<username><luke20>

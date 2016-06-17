@@ -1,0 +1,1 @@
+g++ -static-libstdc++ -m32 -w -Wl,-subsystem,windows main.cpp ../SDL2W/src/graphics.cpp ../SDL2W/src/input.cpp ../SDL2W/src/util.cpp SDL2main.lib SDL2.dll SDL2_image.dll -lmingw32 -std=c++0x -o main.exe && main

@@ -1,1 +1,0 @@
-To add new SDL libraries, download mingw SDL dev lib, put its _i686_ libs/includes/bin contents in the SDL2dev lib/include/bin folders. Then put the dll in bin in the game folder by the exe and add the link flag.

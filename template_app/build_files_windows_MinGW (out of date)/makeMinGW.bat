@@ -1,1 +1,0 @@
-g++ -static-libstdc++ -m32 -w -Wl,-subsystem,console src/main.cpp ../SG2D/src/graphics.cpp ../SG2D/src/core.cpp ../SG2D/src/input.cpp ../SG2D/src/util.cpp ../SG2D/src/sound.cpp ../SG2D/src/net.cpp SDL2main.lib SDL2.dll SDL2_image.dll SDL2_mixer.dll -lmingw32 -std=c++0x -o main.exe -D SG2D_TEST && main

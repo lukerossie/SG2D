@@ -1,0 +1,1 @@
+cl -c /EHsc src/cpp/SG2D.cpp src/cpp/widgets.cpp

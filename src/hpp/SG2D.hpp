@@ -1,12 +1,12 @@
 #pragma once
-
-#include "include/core.hpp"
-#include "include/graphics.hpp"
-#include "include/input.hpp"
-#include "include/net.hpp"
-#include "include/sound.hpp"
-#include "include/util.hpp"
-
+//@todo move these to cpp file
+#include "../../../OSAL/src/hpp/system.hpp"
+#include "../../../OSAL/src/hpp/graphics.hpp"
+#include "../../../OSAL/src/hpp/input.hpp"
+#include "../../../OSAL/src/hpp/net.hpp"
+#include "../../../OSAL/src/hpp/sound.hpp"
+#include "../../../OSAL/src/hpp/util.hpp"
+#include "widgets.hpp"
 #include <cassert>
 #include <chrono>
 #include <iostream>
@@ -19,19 +19,12 @@
 #include <deque>
 #include <cmath>
 
-/*NOTES
+/*
+@NOTES
 release: remove debugging symbols from exe, enable optimizations
 
-non-images (textures) cant be rotated as of now
-    can use gfx library for that, should be hardware accelerated though.
-        eventually would be nice to have full featured hardware acceleration for all kinds of geometry
-*/
-
-/*@TODO
-rewrite mover to move a certain distance, right now its brittle, probably buggy, and doesnt (cant) account for external forces on movement
-
+@TODO
 make entities copyable? *should now be done, at least destructable!*
-    right now you cant push a bunch into a vector on the stack for example (why?)
 
 debugging features
     show info on hover
@@ -40,14 +33,13 @@ debugging features
 
 easy keybinding, on entities?
 
-collision detection for rotated rects
-*/
+collision detection for rotated rects, gjk
 
-/*things that are really bad
+@things that are really bad
 finalize (recomputing frame on a collision is retarded)
-*/
 
-/*networking overview
+
+@networking overview
 sendq (this is the only function you should call from a game)
 adds message to a buffer to be sent to specified server, all sendq messages are sent at the end of the frame
 
@@ -57,7 +49,25 @@ wrapper around SDLNet_TCP_Send
 recv
 wrapper around SDLNet_TCP_Recv
 appends a newline to the end of the string to signify end of message
+
+@rework
+key state code can stay the same, just need to send them to a server that runs a sim instead of broadcasting them
+    then need an entirely new system for recieving state from the server, could use udp
+
+remove redundancies (keyState, keyDown, onKeyEvent...)
+
+make naming and convention consistent (e.g. constructors start with ctor, destructors start with dtor, followed by name of class followed optionally by something else)
+
+perhaps entity should compose body instead of inherit it
+
+factor out neon needle specific code into the game
+
+factor out non-essential code into other modules (e.g. gettags)
 */
+
+std::string gettag(std::string s, int tagnumber, int index);
+std::string gettags(std::string s, int begin, int end);
+std::pair<std::vector<std::string>,std::string> separate(char c,std::string stream,bool exclude);
 
 class Entity;
 class Body;
@@ -67,22 +77,22 @@ namespace SG2D
 
     extern std::map<int,bool> entityWasDrawnLastFrame;
     //events
-    extern std::function<void(Vec2 wh_p)> onResize;
+    extern std::function<void(vec2 wh_p)> onResize;
     extern std::function<void()> preDraw;//used to draw background
     extern std::function<void()> postDraw;//used to draw hud
+    extern std::function<void(int key, bool down)> keyEvent;
     //Also called for mutliplayer entities (IF SG2D::server), don't capture! If you need to do something client specific check key function.
     extern std::map<int,std::function<void(std::string who,long long time)>> onKeyUp;//null passed if its the client player
     extern std::map<int,std::function<void(std::string who,long long time)>> onKeyDown;
-    extern std::map<std::string,std::function<void(std::string who,Vec2 pos,long long time)>> onMB_click;//null passed if its you
-    extern std::map<std::string,std::function<void(std::string who,Vec2 pos,long long time)>> onMB_release;
+    extern std::map<std::string,std::function<void(std::string who,vec2 pos,long long time)>> onMB_click;//null passed if its you
+    extern std::map<std::string,std::function<void(std::string who,vec2 pos,long long time)>> onMB_release;
     extern std::function<void(std::vector<std::string> tags)> handleMessage;//any other messages (custom messages, non key press)
 
     extern bool enableCamera;//must set player if true
-    extern Vec2 cameraOffset;//uses getCurrentPos OF PLAYER
-    extern Vec2 cameraCenter;//set in entity.update by player
+    extern vec2 cameraOffset;//uses getCurrentPos OF PLAYER
+    extern vec2 cameraCenter;//set in entity.update by player
 
     extern bool enableLogging;
-    extern Clock logClock;
 
     extern int logTimer;
     extern bool enablelog0;
@@ -91,20 +101,20 @@ namespace SG2D
     extern std::vector<Entity*> ent;//keep this for now so we can easily do flat operations on all entities (probably would be better to just use children)
 
     extern bool enableSendTags;
-    void sendtags(TCPsocket who, std::vector<std::string> data);
+    void sendtags(tcp_socket *who, std::vector<std::string> data);
     void sortEnts(Entity *parent);
     void setCurFontPath(char const *fontPath);
 
-    void initCamera(Vec2 cameraCenter_p);
+    void initCamera(vec2 cameraCenter_p);
 
-    Vec2 getScreenSize();//updated dynamically
+    vec2 getScreenSize();//updated dynamically
 
     void log0(std::string msg);//disableable cout (no time limit)
     void log(std::string label,int i);
     void log(std::string label,float i);
     void log(std::string label,double i);
-    void log(std::string label,SDL_Rect s);
-    void log(std::string label,Vec2 v);
+    void log(std::string label,rect s);
+    void log(std::string label,vec2 v);
     void log(std::string label,bool b);
     void log(std::string label,std::string s);
     void log(std::string label,std::vector<float> v);
@@ -113,23 +123,23 @@ namespace SG2D
 class Body
 {
     double renderangle;
-    Vec2 renderpos;
-    Vec2 rendersize;
+    vec2 renderpos;
+    vec2 rendersize;
     bool dirty;
     double angle;
 
-    Vec2 origin;//same as relpos, .5,.5 for center
-    Vec2 pos;
-    Vec2 size;
+    vec2 origin;//same as relpos, .5,.5 for center
+    vec2 pos;
+    vec2 size;
 
     //@TODO RENDERSCALE ADD SCALE TO PARENT RENDERSCALE TO GET SCALE (SHOULD DEPDN ON RELCHILDREN/PARENT ?)
     //if we do this we have to make scale special, and separate it from renderpos, so that it doesnt effect children who update from parents renderpos
-    Vec2 scale;
-    Vec2 relposme;//this could be a vec4, but so could scale... can't think of a use for that though really
+    vec2 scale;
+    vec2 relposme;//this could be a vec4, but so could scale... can't think of a use for that though really
 
     //like relpos and relsize except can only scale x with x and y with y, easy vector operations
-    Vec2 rp;
-    Vec2 rs;
+    vec2 rp;
+    vec2 rs;
 
     std::vector <double> relpos;
     std::vector <double> relsize;
@@ -144,22 +154,22 @@ class Body
     Body(Body *parent_p=0,bool listed_p=true);
     virtual ~Body();
 
-    virtual void update(bool inherit,Vec2 renderposOffset);
+    virtual void update(bool inherit,vec2 renderposOffset);
 
     void setdirty(bool dirty_p);
     void setangle(double angle_p);
-    void setpos(Vec2 const &pos_p);
-    void setsize(Vec2 const &size_p);
+    void setpos(vec2 const &pos_p);
+    void setsize(vec2 const &size_p);
     void setrelpos(std::vector<double> relpos_p);
     void setrelsize(std::vector<double> relsize_p);
-    void setscale(Vec2 const &scale_p);
+    void setscale(vec2 const &scale_p);
     void setscale(float scale_p);
-    void setrelposme(Vec2 const &relposme_p);
-    void setorigin(Vec2 const &origin_p);
-    void setrp(Vec2 const &rp_p);
-    void setrs(Vec2 const &rs_p);
-    void setrenderpos(Vec2 const &rp);
-    void setrendersize(Vec2 const &rs);
+    void setrelposme(vec2 const &relposme_p);
+    void setorigin(vec2 const &origin_p);
+    void setrp(vec2 const &rp_p);
+    void setrs(vec2 const &rs_p);
+    void setrenderpos(vec2 const &rp);
+    void setrendersize(vec2 const &rs);
     void setrenderangle(double renderangle_p);
 
     //all getters return copies, have to be set
@@ -168,22 +178,22 @@ class Body
     int getuid();
 
     double getangle();
-    Vec2 getpos();
-    Vec2 getsize();
+    vec2 getpos();
+    vec2 getsize();
     std::vector<double> getrelpos();
     std::vector<double> getrelsize();
-    Vec2 getscale();
-    Vec2 getrelposme();
-    Vec2 getorigin();
-    Vec2 getrp();
-    Vec2 getrs();
+    vec2 getscale();
+    vec2 getrelposme();
+    vec2 getorigin();
+    vec2 getrp();
+    vec2 getrs();
 
-    Vec2 getrenderpos();
-    Vec2 getrendersize();
+    vec2 getrenderpos();
+    vec2 getrendersize();
     double getrenderangle();
 };
 
-void drawImageFromBody(Image *img_p,byte renderalpha_p,Body *b_p,SDL_Rect &dest_p,Vec2 &rs);
+void drawImageFromBody(Image *img_p,u8 renderalpha_p,Body *b_p,rect &dest_p,vec2 &rs);
 struct Animation
 {
     bool loop;
@@ -195,30 +205,36 @@ struct Animation
 
     Animation();
     Animation(std::vector<Image *> *imgv_p,bool loop_p=false,int FPS=60);
-    void draw(long long deltaMilli,byte renderalpha,Body *b,SDL_Rect &dest,Vec2 &rs);
+    void draw(long long deltaMilli,u8 renderalpha,Body *b,rect &dest,vec2 &rs);
 };
 class Renderer
 {
-    byte alpha;//0-255
-    byte renderalpha;
-    SDL_Rect dest;
+    u8 alpha;//0-255
+    u8 renderalpha;
+    rect dest;
     std::string text;
-    SDL_Point shapeCenter;
-    SDL_Rect shapeDest;
-    Color color;//last byte always replaced with alpha before rendering
+    rect shapeCenter;
+    rect shapeDest;
+    color draw_color;//last u8 always replaced with alpha before rendering
 
     public:
+    bool use_prealloc_color;
+    std::shared_ptr<Texture> prealloc_red;
+    std::shared_ptr<Texture> prealloc_green;
+    std::shared_ptr<Texture> prealloc_blue;
+
     std::shared_ptr<Texture> shape;
     bool alwaysdraw;
     Animation anim;
-    SDL_Surface *maskSurface;//dont free this, reference to single allocated surface in main
+    surface *maskSurface;//dont free this, reference to single allocated surface in main
+    surface *prealloc_mask_surface;//dont free this, reference to single allocated surface in main
     /*@TODO
     add a variable you can use that will recreate the textures if the size changes from a certain factor
     e.g. renderer.resizeFact=5
     if(abs(size-lastResize)>size/5)recreatetexture();
     *should apply to text and shapes, anything that is allocated in code*
     */
-    Vec2 shapeScale;
+    vec2 shapeScale;
     Image **img;
 
     Text textImage;
@@ -232,20 +248,21 @@ class Renderer
     Renderer(Image **img_p);
     Renderer(Animation anim_p);
     //@note if you want to use text on an entity you have to call the text constructor, then add shapes and images after
-    Renderer(std::string text_p, Color color_p, bool fastRender=true);
-    Renderer(ShapeType st_p, Color color_p={255,255,255,255});
+    Renderer(std::string text_p, color color_p, bool fastRender=true);
+    Renderer(ShapeType st_p, color color_p={255,255,255,255});
 
-    virtual void draw(long long deltaMilli,Body *b,int alphaOffset,Vec2 origin,Vec2 positionOffset={});
+    void use_prealloc_color_mask(surface *s);
+    virtual void draw(long long deltaMilli,Body *b,vec2 renderpos,vec2 rendersize,int alphaOffset,vec2 positionOffset={},bool just_mask=false);
 
     void settext(std::string text_p);
     std::string gettext();
 
-    void setcolor(Color color_p);
-    Color getcolor();
-    SDL_Rect getdest();
-    void setalpha(byte alpha_p);
-    byte getalpha();
-    byte getrenderalpha();
+    void setcolor(color color_p);
+    color getcolor();
+    rect getdest();
+    void setalpha(u8 alpha_p);
+    u8 getalpha();
+    u8 getrenderalpha();
 };
 
 /*
@@ -319,75 +336,29 @@ const double Motion<T>::gravity=9.8;
 
 class Entity : public Body
 {
-    /*
-    struct Mover//@todo something better
-    {
-        Vec2 beginpos;
-        Vec2 endpos;
-        bool moving;
-        double acceleration;
-        double velConst;
-        std::function<void()> callback;
-
-        Mover()
-        {
-            moving=false;
-        }
-
-        void update(Entity *movee,int deltaMilli)
-        {
-            if(moving)
-            {
-                auto delta=endpos-beginpos;
-                auto adj=delta.unit().scale(acceleration);
-                if(!velConst)
-                {
-                    if((movee->getCurrentPos()-endpos).len()<(movee->getCurrentPos()-beginpos).len())
-                    {
-                        movee->vel-=adj;
-                    }
-                    else
-                    {
-                        movee->vel+=adj;
-                    }
-                }
-                else
-                {
-                    movee->vel=movee->vel.unit()*velConst;
-                }
-
-                if(!delta.sameSign(movee->vel)||(movee->getCurrentPos()-endpos).len()<(movee->vel).len()*deltaMilli/1000+.00000001)
-                {
-                    auto val=(movee->getCurrentPos()-endpos).len();
-                    moving=false;
-                    movee->vel=0;
-                    movee->setCurrentPos(endpos);
-                    if(callback)
-                    {
-                        callback();
-                    }
-                }
-            }
-        }
-    }mover;
-    */
 
     Entity *parent;
     int order;
+    std::vector<vec2> image_fade_previous;
+    int image_fade_frame_drag_counter;
+    vec2 unusedOffset;
+    bool fading=false;
 
 
     public:
 
+    int image_fade;
+    int image_fade_frame_drag;
     std::string entityName;
     int resizeFactorDirty;//the amount you have to scale in size to redirty textures, such as text. uses lastResize rendersize (last time resizeFactor was triggered, or at creation)
-    Vec2 lastResize;
+    vec2 lastResize;
 
     std::string userData;//not used in the class, should probably be removed.
     std::vector<Entity *> children;
     std::vector<Entity *> collider;
 
     double spin;//returns delta PER SECOND
-    Motion<Vec2> positionMotion;//returns defaultPos delta PER SECOND
+    Motion<vec2> positionMotion;//returns defaultPos delta PER SECOND
 
     bool visible;//here rather than in renderer since it stops absolutely everything. (returns from drawrecurs, no children draw)
     bool myvisible;//just stops my own draw
@@ -399,14 +370,13 @@ class Entity : public Body
     bool offsetByCamera;
     std::function<void()> onclick;
     std::function<bool()> onupdate;
-    SDL_Cursor *hoverCursor;
     std::function<void()> drawCallback;
     std::function<void()> onDrawBegin;
     int uid_e;
     enum class PosType{POS,RP}defaultPos;
     bool listed;
-    Vec2 startrenderpos;
-    Vec2 lastDelta;
+    vec2 startrenderpos;
+    vec2 lastDelta;
     bool hasCollided;
     bool relparent;//you check this before inheriting from parent
     bool relchildren;//your children check this before inheriting
@@ -423,30 +393,30 @@ class Entity : public Body
     bool decendedFrom(Entity *e);
 
     //this will break easily. dont use it unless there is nothing else effecting the position (until its rewritten)
-    //void moveTo(Vec2 endpos, double acceleration, double velConst=0, std::function<void()> callback=[](){});
+    //void moveTo(vec2 endpos, double acceleration, double velConst=0, std::function<void()> callback=[](){});
 
     //no setter
     Entity *getparent();
 
-    byte getalpha();
-    Vec2 getCurrentPos();
+    u8 getalpha();
+    vec2 getCurrentPos();
     int getorder();
     int getorderRecurs();
 
-    void setCurrentPos(Vec2 v);
+    void setCurrentPos(vec2 v);
     void setorder(int order_p);
-    void setalpha(byte alpha_p);
+    void setalpha(u8 alpha_p);
 };
 
 namespace SG2D
 {
-    extern TCPsocket serverIP;
-    extern TCPsocket server;
+    extern tcp_socket *serverIP;
+    extern tcp_socket *server;
     extern std::string userName;
 
     extern Entity root;
     bool initServer(char const *serverIP);
-    Vec2 init(char const *title=0, int width=0, int height=0, int flags=0, char const *userName_p=0,char const *serverIP="127.0.0.1");
+    vec2 init(char const *userName_p=0,char const *serverIP="127.0.0.1");
     void sortEnts(Entity *parent);
     void updateRecurs(Entity *e,long long deltaMilli);
     void finalizeRecurs(Entity *e);
@@ -464,10 +434,10 @@ namespace SG2D
 
         World();
 
-        void update(Clock *gameClock);
+        void update(long long deltatime);
     }extern world;
 
-    void frame(Clock *gameClock);
+    void frame(long long deltatime);
 }
 
 

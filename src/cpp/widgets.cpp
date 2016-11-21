@@ -6,6 +6,10 @@
 #include "../../../OSAL/src/hpp/util.hpp"
 #include "../../../OSAL/src/hpp/system.hpp"
 
+texture *ctor_texture_arc(int radius, int degreeBegin, int degreeEnd, color draw_color);//impl
+texture *ctor_texture_circle(int radius, color draw_color);//impl
+texture *ctor_texture_rect(color draw_color,std::vector<std::vector<color>> *surfMask);//impl
+
 Texture::Texture()
 {
 
@@ -35,8 +39,8 @@ Image::Image()
 }
 Image::Image( char const *path, int srcX, int srcY, int srcW, int srcH ) : Image()
 {
-	texture = std::make_shared<Texture>( path );
-	surface *surf = new surface(path);//needs free
+	image_texture = std::make_shared<Texture>( path );
+	auto pixels=query_texture(image_texture.get()->rawTexture);
     src.x = 0;
     src.y = 0;
     if(srcX&&srcY)
@@ -46,15 +50,14 @@ Image::Image( char const *path, int srcX, int srcY, int srcW, int srcH ) : Image
 	}
 	else
 	{
-		src.w = surf->pixels.size();
-		src.h = surf->pixels[0].size();
+		src.w = pixels->size();
+		src.h = pixels.get()[0].size();
 	}
 	dest.x = 0;
     dest.y = 0;
     dest.w = src.w;
     dest.h = src.h;
-	delete ( surf );
-	if(!texture.get())
+	if(!image_texture.get())
     {
      	print(std::string("Image ctor error")+get_error());
     }
@@ -65,7 +68,7 @@ Image::~Image()
 }
 void Image::draw()
 {
-	draw_texture( texture.get()->rawTexture, &dest, angle, &center, &src );
+	draw_texture( image_texture.get()->rawTexture, &dest, angle, &center, &src );
 }
 
 
@@ -128,13 +131,11 @@ void PlainText::settext(std::string text_p)
 	color_impl.g=text_color[1];
 	color_impl.b=text_color[2];
 	color_impl.a=text_color[3];
-	surface *s=new surface( f->font, text.c_str(), color_impl );
-	if(!s)print(std::string("PlainText error")+get_error());//these should be moved into the lower level code that handles sdl
-	rendertext=ctor_texture( s );
+	rendertext=ctor_texture( f->font, text.c_str(), color_impl );
 	set_texture_alpha(rendertext, color_impl.a);
-	dest.w=s->pixels.size();
-	dest.h=s->pixels[0].size();
-	delete ( s );
+	auto pixels=query_texture(rendertext);
+	dest.w=pixels->size();
+	dest.h=pixels.get()[0].size();
 }
 std::string PlainText::gettext()
 {
@@ -224,23 +225,15 @@ void Text::draw()
 		}
 
 		{//buffers
-			surface *s=new surface( f->font, text.c_str(), text_color );
-
-			if(!s)
-			{//if there is no text or error s will be null
-                printf("Null text surface: %s\n",get_error());
-				return;
-			}
-
 			if(rendertext)dtor_texture( rendertext );
 
+			rendertext=ctor_texture( f->font, text.c_str(), text_color );
+			auto pixels=query_texture(rendertext);
 			int offset=0;//@bug set this to 1 to remove bugged pixel border around texture, or 0 to disable
-			src={ (f64)offset,(f64)offset,(f64)(s->pixels.size()-offset*2),(f64)(s->pixels[0].size()-offset*2) };
+			src={ (f64)offset,(f64)offset,(f64)(pixels.get()->size()-offset*2),(f64)(pixels.get()[0].size()-offset*2) };
 
-			rendertext=ctor_texture( s );
             if(!rendertext)printf("Render text texture error: %s\n",get_error());
 			set_texture_alpha(rendertext, text_color.a);
-			delete ( s );
 		}
 		dirty=false;
 	}

@@ -8,7 +8,7 @@
 
 texture *ctor_texture_arc(int radius, int degreeBegin, int degreeEnd, color draw_color);
 texture *ctor_texture_circle(int radius, color draw_color);//(if surfMask overwrites radius with size of surf.w/2) will have to recreate to get decent looking edges
-texture *ctor_texture_rect(color draw_color,surface *surfMask=0);//allocs 1x1 rect (unless surfMask, then size of surfMask), can then be stretched
+texture *ctor_texture_rect(color draw_color,std::vector<std::vector<color>> *surfMask=0);//allocs 1x1 rect (unless surfMask, then size of surfMask), can then be stretched
 
 /*
 texture wrapper
@@ -34,7 +34,7 @@ struct Image
 	vec2 center;
 	double angle;
 
-	std::shared_ptr<Texture> texture;
+	std::shared_ptr<Texture> image_texture;
 
     Image();
 	Image( char const *path, int srcX=0, int srcY=0, int srcW=0, int srcH=0 );

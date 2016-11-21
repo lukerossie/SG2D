@@ -226,8 +226,8 @@ class Renderer
     std::shared_ptr<Texture> shape;
     bool alwaysdraw;
     Animation anim;
-    surface *maskSurface;//dont free this, reference to single allocated surface in main
-    surface *prealloc_mask_surface;//dont free this, reference to single allocated surface in main
+    std::vector<std::vector<color>> *maskSurface;//dont free this, reference to single allocated surface in main
+    std::vector<std::vector<color>> *prealloc_mask_surface;//dont free this, reference to single allocated surface in main
     /*@TODO
     add a variable you can use that will recreate the textures if the size changes from a certain factor
     e.g. renderer.resizeFact=5
@@ -251,7 +251,7 @@ class Renderer
     Renderer(std::string text_p, color color_p, bool fastRender=true);
     Renderer(ShapeType st_p, color color_p={255,255,255,255});
 
-    void use_prealloc_color_mask(surface *s);
+    void use_prealloc_color_mask(std::vector<std::vector<color>> *s);
     virtual void draw(long long deltaMilli,Body *b,vec2 renderpos,vec2 rendersize,int alphaOffset,vec2 positionOffset={},bool just_mask=false);
 
     void settext(std::string text_p);

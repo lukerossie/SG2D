@@ -545,7 +545,7 @@ double Body::getrenderangle()
 //shared between animation and renderer
 void drawImageFromBody(Image *img_p,u8 renderalpha_p,Body *b_p,rect &dest_p,vec2 &rs)
 {
-    set_texture_alpha(img_p->texture->rawTexture, renderalpha_p);
+    set_texture_alpha(img_p->image_texture->rawTexture, renderalpha_p);
 
     img_p->dest=dest_p;
     img_p->angle=b_p->getrenderangle();
@@ -611,7 +611,7 @@ Renderer::Renderer(ShapeType st_p, color color_p):Renderer()
     st=st_p;
     draw_color=color_p;
 }
-void Renderer::use_prealloc_color_mask(surface *s)
+void Renderer::use_prealloc_color_mask(std::vector<std::vector<color>> *s)
 {
     prealloc_red=std::make_shared<Texture>(ctor_texture_rect({255,0,0,255},s));
     prealloc_green=std::make_shared<Texture>(ctor_texture_rect({0,255,0,255},s));
